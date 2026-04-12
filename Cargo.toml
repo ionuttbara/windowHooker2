@@ -1,0 +1,8 @@
+[workspace]
+members = [
+    "shared",
+    "hook",
+    "manager",
+    "windowmanager"
+]
+resolver = "2"

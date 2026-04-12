@@ -1,0 +1,29 @@
+[package]
+name = "manager"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+shared = { path = "../shared" }
+windowmanager = { path = "../windowmanager" }
+windows = { version = "0.52", features = [
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_System_LibraryLoader",
+    "Win32_Graphics_Gdi",
+    "Win32_UI_Shell",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_Graphics_Dwm",
+    "Win32_UI_Accessibility",
+    "Win32_System_Threading",
+    "Win32_System_Registry",
+    "Win32_System_DataExchange",
+    "Win32_System_Memory",
+    "Win32_System_Registry",
+] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Libraria care adaugă metadatele în executabil:
+[build-dependencies]
+winres = "0.1"

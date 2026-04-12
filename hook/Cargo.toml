@@ -1,0 +1,21 @@
+[package]
+name = "hook"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+shared = { path = "../shared" }
+windows = { version = "0.52", features = [
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_System_LibraryLoader",
+    "Win32_System_SystemServices", # Adăugat pentru DLL_PROCESS_ATTACH
+    "Win32_System_Threading",
+    "Win32_Security",
+] }
+
+[build-dependencies]
+winres = "0.1"
