@@ -13,8 +13,13 @@ pub const CMD_MAIN_EXIT: u32 = 4002;
 pub const CMD_MAIN_TOGGLE_SNAP: u32 = 4003;
 pub const CMD_MAIN_TOGGLE_ALTTAB: u32 = 4004;
 pub const CMD_MAIN_TOGGLE_COPILOT: u32 = 4005;
+pub const CMD_MAIN_CONFIG_COPILOT: u32 = 4008;
 pub const CMD_MAIN_TOGGLE_MEMCLEAN: u32 = 4006;
-pub const CMD_MAIN_RUN_MEMCLEAN: u32 = 4007; // ID NOU PENTRU CURATARE MANUALA
+pub const CMD_MAIN_RUN_MEMCLEAN: u32 = 4007;
+pub const CMD_MAIN_HOTKEY_MANAGER: u32 = 4030;
+
+pub const CMD_MAIN_TOGGLE_FANCYZONES: u32 = 4020; // <-- Adăugat
+pub const CMD_MAIN_EDIT_FANCYZONES: u32 = 4021;   // <-- Adăugat
 
 pub const CMD_MAIN_LANG_RO: u32 = 4010;
 pub const CMD_MAIN_LANG_EN: u32 = 4011;
@@ -71,12 +76,24 @@ impl MenuManager {
         let txt_cop = tr_w(lang, "menu_copilot"); let _ = AppendMenuW(hmenu, MF_STRING, CMD_MAIN_TOGGLE_COPILOT as usize, PCWSTR(txt_cop.as_ptr()));
         if settings.copilot_enabled { let _ = CheckMenuItem(hmenu, CMD_MAIN_TOGGLE_COPILOT, MF_BYCOMMAND.0 | MF_CHECKED.0); }
         
-        // Optiunile pentru Memorie
+        let txt_config_cop = tr_w(lang, "menu_config_copilot"); 
+        let _ = AppendMenuW(hmenu, MF_STRING, CMD_MAIN_CONFIG_COPILOT as usize, PCWSTR(txt_config_cop.as_ptr()));
+        
         let txt_mem = tr_w(lang, "menu_memclean"); let _ = AppendMenuW(hmenu, MF_STRING, CMD_MAIN_TOGGLE_MEMCLEAN as usize, PCWSTR(txt_mem.as_ptr()));
         if settings.mem_cleaner_enabled { let _ = CheckMenuItem(hmenu, CMD_MAIN_TOGGLE_MEMCLEAN, MF_BYCOMMAND.0 | MF_CHECKED.0); }
         
         let txt_run_mem = tr_w(lang, "menu_run_memclean"); let _ = AppendMenuW(hmenu, MF_STRING, CMD_MAIN_RUN_MEMCLEAN as usize, PCWSTR(txt_run_mem.as_ptr()));
         
+        let _ = AppendMenuW(hmenu, MF_SEPARATOR, 0, None);
+
+        let txt_hk = tr_w(lang, "menu_hotkeys"); // Add "menu_hotkeys" to shared/lib.rs translations
+        let _ = AppendMenuW(hmenu, MF_STRING, CMD_MAIN_HOTKEY_MANAGER as usize, PCWSTR(txt_hk.as_ptr()));
+
+        // --- Meniu FancyZones ---
+        let txt_fz = tr_w(lang, "menu_fancyzones"); let _ = AppendMenuW(hmenu, MF_STRING, CMD_MAIN_TOGGLE_FANCYZONES as usize, PCWSTR(txt_fz.as_ptr()));
+        if settings.fancyzones_enabled { let _ = CheckMenuItem(hmenu, CMD_MAIN_TOGGLE_FANCYZONES, MF_BYCOMMAND.0 | MF_CHECKED.0); }
+        
+        let txt_edit_fz = tr_w(lang, "menu_edit_fancyzones"); let _ = AppendMenuW(hmenu, MF_STRING, CMD_MAIN_EDIT_FANCYZONES as usize, PCWSTR(txt_edit_fz.as_ptr()));
         let _ = AppendMenuW(hmenu, MF_SEPARATOR, 0, None);
 
         // --- Meniu Limbi ---

@@ -2,7 +2,7 @@
 
 mod always_on_top; mod rollup; mod transparency; mod tray; mod menu;
 mod startupreg; mod app_killer; mod explorerstarts; mod advanced_paste;
-mod settings; mod nocopilot; mod mem_cleaner;
+mod settings; mod nocopilot; mod mem_cleaner; mod keyboard_hooker;
 
 use always_on_top::{AlwaysOnTopManager, overlay_wnd_proc};
 use rollup::RollUpManager; use transparency::TransparencyManager;
@@ -132,13 +132,25 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                     else if cmd_id == CMD_MAIN_TOGGLE_SNAP { s.snap_enabled = !s.snap_enabled; s.save(); DesktopManager::set_snap_enabled(s.snap_enabled); }
                     else if cmd_id == CMD_MAIN_TOGGLE_ALTTAB { s.alttab_enabled = !s.alttab_enabled; s.save(); DesktopManager::set_alttab_enabled(s.alttab_enabled); }
                     else if cmd_id == CMD_MAIN_TOGGLE_COPILOT { s.copilot_enabled = !s.copilot_enabled; s.save(); nocopilot::IS_ENABLED = s.copilot_enabled; }
+                    else if cmd_id == CMD_MAIN_CONFIG_COPILOT { nocopilot::NoCopilotManager::show_config_dialog(); }
                     else if cmd_id == CMD_MAIN_TOGGLE_MEMCLEAN { 
                         s.mem_cleaner_enabled = !s.mem_cleaner_enabled; s.save(); 
                         if s.mem_cleaner_enabled { mem_cleaner::MemCleaner::clean(); } 
                     }
-                    else if cmd_id == CMD_MAIN_RUN_MEMCLEAN { // ACTIUNEA MANUALA: Rulăm instantaneu funcția clean
+                    else if cmd_id == CMD_MAIN_RUN_MEMCLEAN { 
                         mem_cleaner::MemCleaner::clean();
                     }
+                    else if cmd_id == CMD_MAIN_TOGGLE_FANCYZONES {
+                        s.fancyzones_enabled = !s.fancyzones_enabled; s.save();
+                        windowmanager::fancyzone::FANCY_ZONES_ENABLED = s.fancyzones_enabled;
+                    }
+                    else if cmd_id == CMD_MAIN_EDIT_FANCYZONES {
+                        windowmanager::fancyzone::FancyZoneManager::open_editor();
+                    }
+                    else if cmd_id == CMD_MAIN_HOTKEY_MANAGER {
+                        keyboard_hooker::HotkeyManager::show_editor();
+                    }
+
                     else if cmd_id == CMD_MAIN_LANG_RO { s.language = 0; s.save(); }
                     else if cmd_id == CMD_MAIN_LANG_EN { s.language = 1; s.save(); }
                     else if cmd_id == CMD_MAIN_LANG_HU { s.language = 2; s.save(); }
@@ -158,6 +170,9 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                             let txt_msg = shared::tr_w(s.language, "msg_about_app"); let txt_about = shared::tr_w(s.language, "menu_about");
                             let _ = MessageBoxW(hwnd, PCWSTR(txt_msg.as_ptr()), PCWSTR(txt_about.as_ptr()), MB_OK | MB_ICONINFORMATION | MB_SETFOREGROUND); 
                         }
+                        else if cmd_id == CMD_MAIN_HOTKEY_MANAGER {
+                        keyboard_hooker::HotkeyManager::show_editor();
+                        }
                     }
                 }
             }
@@ -171,7 +186,7 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
 
             let _ = EnumWindows(Some(cleanup_callback), LPARAM(0));
             nocopilot::NoCopilotManager::cleanup();
-
+            keyboard_hooker::HotkeyManager::cleanup();
             unsafe {
                 use windows::Win32::System::Threading::{OpenEventW, SetEvent, EVENT_MODIFY_STATE};
                 let hmod_name = HSTRING::from("hook-x64.dll");
@@ -204,6 +219,21 @@ fn setup_panic_hook() {
 fn main() {
     setup_panic_hook();
     unsafe {
+        // --- Enable Dark Mode Context Menus (Windows 10 1903+ / Windows 11) ---
+        use windows::Win32::System::LibraryLoader::{LoadLibraryW, GetProcAddress};
+        use windows::core::{w, PCSTR};
+        
+        if let Ok(h_uxtheme) = LoadLibraryW(w!("uxtheme.dll")) {
+            if let Some(proc) = GetProcAddress(h_uxtheme, PCSTR(135 as _)) {
+                let set_preferred_app_mode: extern "system" fn(i32) -> i32 = std::mem::transmute(proc);
+                set_preferred_app_mode(2); 
+            }
+            if let Some(proc) = GetProcAddress(h_uxtheme, PCSTR(136 as _)) {
+                let flush_menu_themes: extern "system" fn() = std::mem::transmute(proc);
+                flush_menu_themes();
+            }
+        }
+        
         let existing_hwnd = FindWindowW(MANAGER_WINDOW_CLASS, None);
         if existing_hwnd.0 as usize != 0 {
             let loaded_settings = settings::Settings::load();
@@ -224,7 +254,9 @@ fn main() {
         let mut nid = NOTIFYICONDATAW::default();
         nid.cbSize = std::mem::size_of::<NOTIFYICONDATAW>() as u32;
         nid.hWnd = hwnd; nid.uID = APP_TRAY_ICON_ID; nid.uFlags = NIF_ICON | NIF_TIP | NIF_MESSAGE;
-        nid.uCallbackMessage = WM_TRAY_CALLBACK; nid.hIcon = LoadIconW(None, IDI_APPLICATION).unwrap();
+        nid.uCallbackMessage = WM_TRAY_CALLBACK; 
+        nid.hIcon = LoadIconW(hinstance, PCWSTR(1 as _)).unwrap_or(LoadIconW(None, IDI_APPLICATION).unwrap());
+        
         let tip = format!("IBB-Hooker v{}\0", shared::APP_VERSION).encode_utf16().collect::<Vec<u16>>();
         for (i, &c) in tip.iter().enumerate() { if i < nid.szTip.len() { nid.szTip[i] = c; } }
         Shell_NotifyIconW(NIM_ADD, &nid);
@@ -255,6 +287,9 @@ fn main() {
         DesktopManager::set_alttab_enabled(loaded_settings.alttab_enabled);
         nocopilot::IS_ENABLED = loaded_settings.copilot_enabled;
         
+        // --- Inițializare Fancy Zones State ---
+        windowmanager::fancyzone::FANCY_ZONES_ENABLED = loaded_settings.fancyzones_enabled;
+        
         if loaded_settings.mem_cleaner_enabled { mem_cleaner::MemCleaner::clean(); }
         
         SETTINGS = Some(loaded_settings);
@@ -263,7 +298,8 @@ fn main() {
         nocopilot::NoCopilotManager::init(hwnd);
         DesktopManager::initialize_all();
         AdvancedPasteManager::init();
-        
+        keyboard_hooker::HotkeyManager::init(hwnd);
+
         let mut msg = MSG::default();
         while GetMessageW(&mut msg, HWND(0 as _), 0, 0).into() { TranslateMessage(&msg); DispatchMessageW(&msg); }
     }

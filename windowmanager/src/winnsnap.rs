@@ -9,6 +9,9 @@ use windows::Win32::UI::Accessibility::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
 use windows::Win32::UI::Input::KeyboardAndMouse::{SetCapture, ReleaseCapture};
 
+// --- ADĂUGAT PENTRU FANCY ZONES ---
+pub static mut FANCYZONE_CALLBACK: Option<fn(POINT) -> Option<RECT>> = None;
+
 static mut SNAP_HOOK_START: HWINEVENTHOOK = HWINEVENTHOOK(0 as _);
 static mut SNAP_HOOK_MOVE: HWINEVENTHOOK = HWINEVENTHOOK(0 as _);
 static mut SNAP_HOOK_END: HWINEVENTHOOK = HWINEVENTHOOK(0 as _);
@@ -239,7 +242,8 @@ impl WindowSnapper {
     }
 }
 
-unsafe fn apply_snap(hwnd: HWND, target: RECT) {
+// --- FĂCUT PUBLIC PENTRU FANCY ZONES ---
+pub unsafe fn apply_snap(hwnd: HWND, target: RECT) {
     if !(&*addr_of!(SNAPPED_WINDOWS)).contains(&hwnd) {
         let mut r = RECT::default();
         let _ = GetWindowRect(hwnd, &mut r);
@@ -322,7 +326,15 @@ unsafe extern "system" fn snap_event_proc(
     } 
     else if event == EVENT_OBJECT_LOCATIONCHANGE && DRAGGED_HWND == hwnd {
         let mut pt = POINT::default(); let _ = GetCursorPos(&mut pt);
-        *addr_of_mut!(PENDING_SNAP_RECT) = calculate_snap_zone(pt);
+        
+        // --- ADĂUGAT PENTRU FANCY ZONES: Verificăm întâi dacă FancyZones ne dă un drop zone ---
+        let mut custom_zone = None;
+        if let Some(cb) = *addr_of!(FANCYZONE_CALLBACK) {
+            custom_zone = cb(pt);
+        }
+
+        *addr_of_mut!(PENDING_SNAP_RECT) = custom_zone.or_else(|| calculate_snap_zone(pt));
+        
         if let Some(rect) = *addr_of!(PENDING_SNAP_RECT) {
             let _ = SetWindowPos(OVERLAY_HWND, HWND_TOPMOST, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, SWP_SHOWWINDOW | SWP_NOACTIVATE);
         } else {

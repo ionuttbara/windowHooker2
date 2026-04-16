@@ -7,4 +7,10 @@ fn main() {
     res.set("CompanyName", "Gallery Inc");
     res.set("FileDescription", "IBB-Hooker");
     res.set("ProductName", "IBB-Hooker");
+    
+    // Add the icon to the executable
+    res.set_icon("../hooker.ico");
+    
+    // Compile the resources (required to actually embed the metadata and icon!)
+    res.compile().expect("Failed to compile Windows resources!");
 }

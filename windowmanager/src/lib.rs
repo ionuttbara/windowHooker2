@@ -1,5 +1,6 @@
 pub mod alttabov;
 pub mod winnsnap;
+pub mod fancyzone; // Registered the new module
 
 pub static mut SNAP_ENABLED: bool = true;
 pub static mut ALTTAB_ENABLED: bool = true;
@@ -10,6 +11,7 @@ impl DesktopManager {
     pub unsafe fn initialize_all() {
         winnsnap::WindowSnapper::init();
         alttabov::AltTabManager::init();
+        fancyzone::FancyZoneManager::new(); // Initialized the manager
     }
     
     pub unsafe fn cleanup_all() {
